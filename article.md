@@ -350,6 +350,112 @@ The practical lesson: when you suspect MNAR missingness, inverse propensity weig
 
 ---
 
+## Part IV: The Secular Worsening of Income Non-Response
+
+### Missingness Trends (1972--2018)
+
+Has income non-response gotten worse over time? We computed missingness rates for four key GSS variables across all survey waves from 1972 to 2018.
+
+| Variable | 1980 | 1990 | 2000 | 2010 | 2018 | Trend |
+|----------|-----:|-----:|-----:|-----:|-----:|-------|
+| rincome (MNAR) | 40% | 36% | 36% | 41% | 42% | Rising |
+| realinc (MNAR) | 8% | 10% | 13% | 12% | 8% | Stable-high |
+| polviews (MCAR) | 3% | 4% | 6% | 4% | 4% | Flat |
+| happy (MCAR) | 0.4% | 0.8% | 1.4% | 0.2% | 0.2% | Flat |
+
+**Income non-response has worsened secularly** -- from about 25% in the early GSS waves to 42% by 2018. This is not random fluctuation; a loess trend line shows a steady upward trajectory. The MCAR variables (`happy`, `polviews`) show no comparable trend, remaining flat at low levels throughout.
+
+The implication: any longitudinal analysis using GSS income must account for the fact that the MNAR mechanism is getting *stronger* over time. A model trained on 1980s data, where "only" 25% of income was missing, may not transfer to 2018 data where 42% is missing with potentially different demographic correlates.
+
+### Design Effects: How Much Does Clustering Cost You?
+
+The design effect (DEFF) measures how much the complex survey design inflates standard errors relative to a simple random sample. DEFF = 2 means your effective sample size is half the actual n.
+
+#### GSS 2018
+
+| Variable | DEFF | Effective n (of 2,348) |
+|----------|-----:|-----------------------:|
+| Education (years) | 3.69 | 636 |
+| % college (16+ yr educ) | 2.45 | 957 |
+| % under 35 | 2.04 | 1,150 |
+| Age | 1.68 | 1,393 |
+| % income missing | 1.59 | 1,475 |
+
+**Education has DEFF = 3.69** -- the worst among the variables examined. This means that treating GSS education data as i.i.d. would make you think you have 3.7x more information than you actually do. Standard errors would be underestimated by a factor of sqrt(3.69) = 1.92, and 95% confidence intervals would be roughly half their correct width.
+
+---
+
+## Part V: NHANES -- Design Effects in Health Equity
+
+### Background
+
+The National Health and Nutrition Examination Survey (NHANES) is a cross-sectional health survey that physically examines a probability sample of the US population. Critically, NHANES **oversamples** minority groups (Hispanic, Non-Hispanic Black, Non-Hispanic Asian) to produce reliable health estimates for these subpopulations.
+
+This oversampling means that ignoring the survey weights will systematically overrepresent minorities in any analysis, distorting health disparity estimates.
+
+### Data
+
+NHANES 2017--2018 (pre-pandemic cycle), downloaded from CDC via the `nhanesA` R package:
+- Demographics (DEMO_J): design variables, race/ethnicity
+- Glycohemoglobin (GHB_J): HbA1c for diabetes classification
+- Body measures (BMX_J): BMI for obesity
+- Blood pressure (BPX_J): systolic BP for hypertension
+
+Adults 20+: n = 5,265. Design: `svydesign(id = ~SDMVPSU, strata = ~SDMVSTRA, weights = ~WTMEC2YR, nest = TRUE)`. Weight CV = 1.15. Max/min ratio = 92.
+
+### Diabetes Prevalence: Design-Aware vs Naive
+
+| Race/Ethnicity | Design-Weighted | Naive (Unweighted) | Overestimate |
+|---------------|----------------:|-------------------:|-------------:|
+| Mexican American | 11.0% | 16.6% | +5.6 pp |
+| Other Hispanic | 8.9% | 15.1% | +6.2 pp |
+| Non-Hispanic White | 9.0% | 11.8% | +2.8 pp |
+| Non-Hispanic Black | 12.4% | 15.3% | +2.9 pp |
+| Non-Hispanic Asian | 12.3% | 14.5% | +2.2 pp |
+
+**Naive estimates consistently overstate diabetes prevalence**, especially for Hispanic groups (+5--6 percentage points). This is directly caused by NHANES oversampling: minorities appear more frequently in the unweighted sample than in the population. Without survey weights, a naive analyst would conclude that diabetes disparities between White and Hispanic Americans are smaller than they actually are -- because the inflated Hispanic prevalence appears closer to the (also inflated) White prevalence.
+
+The design-weighted estimates show the true population picture: Non-Hispanic Black and Asian Americans have the highest diabetes prevalence (~12.3--12.4%), followed by Mexican Americans (11.0%), with Non-Hispanic White at 9.0%.
+
+### NHANES Design Effects
+
+| Health Outcome | DEFF | Effective n (of 5,265) |
+|---------------|-----:|-----------------------:|
+| Obesity (BMI >= 30) | **6.08** | 865 |
+| Prediabetes (HbA1c 5.7--6.4%) | 2.31 | 2,280 |
+| Hypertension (SBP >= 140) | 2.17 | 2,422 |
+| Diabetes (HbA1c >= 6.5%) | 1.77 | 2,977 |
+
+**Obesity has DEFF = 6.08** -- by far the largest design effect in our analysis across all three surveys. This means the effective sample size for obesity estimation is only 865 out of 5,265 actual observations. Obesity clusters geographically and by the demographic strata used in NHANES sampling, causing strong intra-cluster correlation.
+
+A naive analyst using n = 5,265 to compute standard errors would underestimate them by a factor of sqrt(6.08) = 2.47. Their 95% confidence intervals would be less than half the correct width. This is not a minor technicality -- it is the difference between "statistically significant" and "not significant" for many health policy conclusions.
+
+---
+
+## Part VI: The Value of a Ton-Mile
+
+### Value Density by Commodity
+
+Not all food is equally valuable per unit of transport. We computed the economic value density ($/ton-mile) -- how much economic value each ton-mile of transport carries.
+
+| Commodity | NYC $/ton-mile | NYC $/ton | Cross-metro pattern |
+|-----------|---------------:|----------:|---------------------|
+| **Meat & Seafood** | **$12.0** | $4,179 | Highest value density everywhere |
+| Grain & Bakery | $7.4 | $2,537 | 2nd highest for NYC |
+| Produce | $5.9 | $2,239 | Middle tier |
+| Prepared Food | $4.2 | $1,247 | Low $/ton despite high volume |
+| Dairy & Eggs | $3.1 | $1,698 | Lowest for NYC |
+
+**Meat & seafood carries $12 of economic value per ton-mile** transported to NYC -- more than double any other food category. This reflects the premium economics of perishable protein: high value per unit weight, time-sensitive delivery, and cold-chain requirements that justify more expensive transport modes.
+
+Prepared food, despite dominating total tonnage and CO2, has relatively low value density ($4.2/ton-mile). This is classic bulk commodity economics: high volume, low margin per unit, travelling moderate distances.
+
+### Geographic Map: NYC's Food Supply
+
+A choropleth map of NYC's food origins shows the supply chain is concentrated in the Northeast corridor: New York (30%), New Jersey (24%), Pennsylvania (13%), Maine (5%), Connecticut (4.5%), and California (3.4%). Two-thirds of NYC's food originates outside New York state, but the vast majority stays within the broader Northeast region.
+
+---
+
 ## Conclusions
 
 ### Missing Data Is Not Just a Nuisance--But It Is Correctable
@@ -384,8 +490,11 @@ install.packages(c("ggplot2", "dplyr", "tidyr", "patchwork", "scales", "survey")
 remotes::install_github("kjhealy/gssr")
 source("mcar_mnar_illustration.R")
 
-# Part I: GSS Advanced (propensity diagnostics, imputation comparison)
+# Part III: GSS Advanced (propensity diagnostics, imputation comparison)
 source("gss_advanced.R")
+
+# Part IV: GSS Missingness Trends + Design Effects
+source("gss_trend_deff.R")
 
 # Part II: CFS Food Miles (base)
 # Download CFS 2017 PUF from:
@@ -398,6 +507,14 @@ source("cfs_food_miles_extended.R")
 
 # Part II: CFS Advanced (commodity carbon, food network, weight sensitivity)
 source("cfs_food_advanced.R")
+
+# Part VI: CFS Value Density + Geographic Map
+install.packages(c("maps", "mapproj"))
+source("cfs_food_value_map.R")
+
+# Part V: NHANES Design Effects in Health Equity
+install.packages("nhanesA")
+source("nhanes_design_effects.R")
 ```
 
 ## Output Files
@@ -419,11 +536,21 @@ source("cfs_food_advanced.R")
 | `cfs_food_advanced.R` | Advanced CFS analysis (3-panel figure) |
 | `cfs_food_advanced.png` | 300 DPI raster, 16 x 22 inches |
 | `cfs_food_advanced.pdf` | Vector PDF |
+| `gss_trend_deff.R` | GSS missingness trends + design effects (2-panel figure) |
+| `gss_trend_deff.png` | 300 DPI raster, 14 x 16 inches |
+| `gss_trend_deff.pdf` | Vector PDF |
+| `nhanes_design_effects.R` | NHANES diabetes prevalence + design effects (2-panel figure) |
+| `nhanes_design_effects.png` | 300 DPI raster, 14 x 14 inches |
+| `nhanes_design_effects.pdf` | Vector PDF |
+| `cfs_food_value_map.R` | CFS value density + geographic food map (2-panel figure) |
+| `cfs_food_value_map.png` | 300 DPI raster, 14 x 16 inches |
+| `cfs_food_value_map.pdf` | Vector PDF |
 
 ## Data Sources
 
 - **General Social Survey** (1972--2024): NORC at the University of Chicago. Accessed via the `gssr` R package (n = 75,699).
 - **Commodity Flow Survey** (2017): US Census Bureau / Bureau of Transportation Statistics. Public Use File (n = 5,978,523). Downloaded from https://www2.census.gov/programs-surveys/cfs/datasets/2017/.
+- **National Health and Nutrition Examination Survey** (2017--2018): CDC/NCHS. Pre-pandemic cycle. Accessed via the `nhanesA` R package (n = 5,265 adults 20+). Tables: DEMO_J, GHB_J, BMX_J, BPX_J.
 - **EPA SmartWay** emission factors (2017 averages): gCO2 per ton-mile by transport mode.
 
 ## References
