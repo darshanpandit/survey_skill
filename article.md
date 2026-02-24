@@ -456,6 +456,71 @@ A choropleth map of NYC's food origins shows the supply chain is concentrated in
 
 ---
 
+## Part VII: SIPP -- Panel Dynamics That Cross-Sectional Surveys Cannot See
+
+### Background
+
+The Survey of Income and Program Participation (SIPP) is a **panel survey**: the same people are interviewed annually across multiple waves. This is fundamentally different from our other surveys (GSS, NHANES, CFS), which are all cross-sectional snapshots. Panel data reveals dynamics--who gains, who loses, who enters and exits programs--that are invisible to any single-wave survey.
+
+### Data
+
+SIPP 2018 panel, Waves 1--3 (reference years 2017--2019). The data is distributed across Census Bureau yearly releases: `pu2018.csv` (Wave 1), `pu2019.csv` (Wave 2), `pu2020.csv` (Wave 3), filtered to `SPANEL=2018`. Design: `svrepdesign(type="Fay", rho=0.5, mse=TRUE)` with 240 replicate weights (Fay's BRR). Weight CV = 0.31 (Wave 1), max/min = 13.
+
+### Panel Attrition: More Than Half Drop Out
+
+Of the 63,915 persons in Wave 1 (December snapshot), only **51.4%** remain in Wave 2, and **45.9%** in Wave 3. This is massive attrition--more than half the sample is lost by the third wave.
+
+Critically, attrition is **not random (MNAR)**:
+
+| Group | Wave 3 retention |
+|-------|----------------:|
+| Age 15--25 | ~35% |
+| Age 51--65 | ~55% |
+| Income Q1 (lowest) | ~40% |
+| Income Q5 (highest) | ~50% |
+
+Young adults and low-income respondents attrite fastest. This means any Wave 3 analysis that ignores attrition is biased toward older, higher-income respondents--exactly the MNAR mechanism we documented in the GSS income missingness analysis. The Census Bureau provides attrition-adjusted weights to correct for this, but the correction comes at a cost: weight dispersion doubles from CV=0.31 in Wave 1 to CV=0.53 in Wave 2.
+
+### Income Volatility: What Snapshots Miss
+
+For the 17,685 persons present in all three waves with valid income, the within-person income change from Wave 1 to Wave 3 is dramatic:
+
+| Wave 1 quintile | Median % change | % with 20%+ drop | % with 20%+ gain |
+|----------------|----------------:|------------------:|-----------------:|
+| Q1 (lowest) | **+200%** | 11.8% | 59.3% |
+| Q2 | +9.1% | 20.2% | 43.3% |
+| Q3 | +8.9% | 22.9% | 39.8% |
+| Q4 | +1.9% | 28.0% | 27.4% |
+| Q5 (highest) | **-4.9%** | 38.9% | 18.9% |
+
+**Low-income respondents show the most volatility**: a median 200% income gain (from very low baselines) and 59% experiencing 20%+ gains. High-income respondents show the opposite--a median 5% decline and 39% experiencing 20%+ drops. This regression-to-the-mean pattern is invisible to cross-sectional surveys, which can only show the static distribution at a single point.
+
+### SNAP Dynamics: The Stock vs. Flow Distinction
+
+A cross-sectional survey can tell you what fraction of the population receives SNAP (food stamps) at a given time. Only a panel survey can tell you about the **flow**: who enters and exits the program.
+
+From Wave 1 to Wave 3 (balanced panel of 17,684 persons): 88.2% stayed off SNAP, 6.7% stayed on, 2.4% exited, and 2.7% entered. The entry and exit rates are nearly equal, suggesting a steady-state churn that a snapshot completely obscures. Policy evaluations that use cross-sectional data to assess SNAP effectiveness miss this program churning entirely.
+
+### Fay's BRR: A Different Variance Engine
+
+SIPP uses **Fay's Balanced Repeated Replication** (BRR) with 240 replicate weight sets, unlike the Taylor linearization used by GSS and NHANES. Each replicate perturbs the sampling weights by a factor of rho=0.5, creating 240 alternative estimates. The variance is computed from the spread of these replicate estimates.
+
+For mean total person income ($3,901): the 240 replicate estimates cluster tightly, giving SE = $41 and a 95% CI of [$3,821, $3,981]. The BRR approach doesn't require PSU or stratum identifiers--the entire design is encoded in the replicate weights. This is why SIPP can release public-use files without disclosing geographic identifiers that might breach respondent confidentiality.
+
+### Weight Evolution: The Cost of Attrition
+
+As respondents drop out, the Census Bureau adjusts the weights of remaining respondents upward to maintain population representativeness. This has measurable consequences:
+
+| Wave | Weight CV | Max/min ratio |
+|------|----------:|--------------:|
+| Wave 1 | 0.31 | 13 |
+| Wave 2 | 0.53 | 234 |
+| Wave 3 | 0.50 | 92 |
+
+The weight CV nearly doubles from Wave 1 to Wave 2. Extreme weights reduce the effective sample size: `1 / (1 + CV^2)` gives an efficiency of 91% in Wave 1 vs. 78% in Wave 2. Later-wave estimates are less precise not just because the sample is smaller, but because the remaining weights are more dispersed.
+
+---
+
 ## Conclusions
 
 ### Missing Data Is Not Just a Nuisance--But It Is Correctable
@@ -474,9 +539,13 @@ At 252 miles on average, NYC's food supply chain is the second-shortest among th
 
 The mode-substitution analysis reveals that eliminating the small volume of air-freighted food to NYC would reduce food transport CO2 by ~15%, while shifting 10% of truck tonnage to rail would save less than 1%. Air freight's emission factor is so extreme (1,054 gCO2/ton-mile vs. 162 for truck) that even tiny volumes dominate the carbon budget. The policy priority should be investing in cold-chain ground logistics that make air freight unnecessary for premium perishables.
 
+### Panel Data Changes the Questions You Can Ask
+
+The SIPP analysis reveals dynamics that are fundamentally invisible to cross-sectional surveys. A snapshot can tell you that 9% of the population receives SNAP; only a panel can tell you that 2.4% exited and 2.7% entered between waves--nearly equal flows producing a static-looking stock. The 200% median income gain for the lowest quintile, and the 5% median decline for the highest, show regression-to-the-mean that no cross-sectional survey can detect. But panel data comes at a cost: 54% attrition by Wave 3, with the attrition itself being MNAR (low-income and young respondents leave fastest), requiring increasingly extreme weight adjustments that reduce effective sample sizes.
+
 ### Design Matters, Always
 
-Both analyses show that ignoring the survey design produces wrong results. In the GSS, design-ignorance bias compounds MNAR bias, making the worst estimates even worse. In the CFS, where weights span a million-fold range (0.3 to 313,947), unweighted estimates would be dominated by the sampling strategy rather than the population reality. Every survey analysis should pass through the design object. There are no exceptions.
+All four surveys show that ignoring the survey design produces wrong results. In the GSS, design-ignorance bias compounds MNAR bias, making the worst estimates even worse. In the CFS, where weights span a million-fold range (0.3 to 313,947), unweighted estimates would be dominated by the sampling strategy rather than the population reality. In NHANES, naive estimates overstate minority diabetes prevalence by 2--6 percentage points due to oversampling. In SIPP, Fay's BRR with 240 replicates encodes the entire design into weight sets, enabling variance estimation without disclosing geographic identifiers. Every survey analysis should pass through the design object. There are no exceptions.
 
 ---
 
@@ -515,6 +584,11 @@ source("cfs_food_value_map.R")
 # Part V: NHANES Design Effects in Health Equity
 install.packages("nhanesA")
 source("nhanes_design_effects.R")
+
+# Part VII: SIPP Panel Dynamics
+# Downloads ~2.5 GB from Census Bureau (pu2018, pu2019, pu2020, rw2018)
+install.packages("data.table")
+source("sipp_panel_analysis.R")
 ```
 
 ## Output Files
@@ -545,12 +619,16 @@ source("nhanes_design_effects.R")
 | `cfs_food_value_map.R` | CFS value density + geographic food map (2-panel figure) |
 | `cfs_food_value_map.png` | 300 DPI raster, 14 x 16 inches |
 | `cfs_food_value_map.pdf` | Vector PDF |
+| `sipp_panel_analysis.R` | SIPP panel attrition, income dynamics, SNAP, BRR (5-panel figure) |
+| `sipp_panel_analysis.png` | 300 DPI raster, 16 x 22 inches |
+| `sipp_panel_analysis.pdf` | Vector PDF |
 
 ## Data Sources
 
 - **General Social Survey** (1972--2024): NORC at the University of Chicago. Accessed via the `gssr` R package (n = 75,699).
 - **Commodity Flow Survey** (2017): US Census Bureau / Bureau of Transportation Statistics. Public Use File (n = 5,978,523). Downloaded from https://www2.census.gov/programs-surveys/cfs/datasets/2017/.
 - **National Health and Nutrition Examination Survey** (2017--2018): CDC/NCHS. Pre-pandemic cycle. Accessed via the `nhanesA` R package (n = 5,265 adults 20+). Tables: DEMO_J, GHB_J, BMX_J, BPX_J.
+- **Survey of Income and Program Participation** (2018 panel, Waves 1--3): US Census Bureau. Reference years 2017--2019. Public Use Files downloaded from https://www2.census.gov/programs-surveys/sipp/data/datasets/. Fay's BRR with 240 replicate weights. Wave 1 n = 63,915 persons (December snapshot).
 - **EPA SmartWay** emission factors (2017 averages): gCO2 per ton-mile by transport mode.
 
 ## References
